@@ -1,5 +1,5 @@
 
-## Covid model comparison and forecasting death predictions
+## Covid model comparison and forecasting death trends and analysis. 
 ### Overview
 
 * Model comparison looks at various time series to forecast future deaths.  
