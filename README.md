@@ -22,4 +22,5 @@ After reading in the data, it was necessary to transform the data to prepare it 
 
 ### EDA
 I looked at the case fataltity ratio and lagged correlations to understand the relationships that will drive the best predictions of future deaths.  Below are a few highlights:
-![alt text](
+![alt text](images/correlation_lags.png)
+
