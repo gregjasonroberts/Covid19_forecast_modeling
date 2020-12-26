@@ -30,6 +30,7 @@ I looked at the case fataltity ratio and lagged correlations to understand the r
 
 ### Model Building
 Each forecast model had a couple unique elements to incorporate.  Each of these models were evaluated for its mean absolute error (MAE).  This measure was chosen because of its ease of interpretation and outliers aren't particularly disruptive to the model.
+
 **SARIMAX**: First I tune the three hyperparameters that go into the order tuple to minimize the error. To do that, I used the auto_arima function from the Pyramid library for Python.  
 **Prophet**: Facebook prophet does not require that we specify or search for hyperparameters as is the case with SARIMAX. Prophet requires the dataframe to have a column for the data ('y') and an index for dates ('ds').  
 **XGBOOST and NN**: Both models required explicitly calling for the number of estimator iterations and epochs that will run through each model reducing the loss measures in successive steps.  
