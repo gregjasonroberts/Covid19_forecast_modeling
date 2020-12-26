@@ -30,15 +30,16 @@ I looked at the case fataltity ratio and lagged correlations to understand the r
 
 ### Model Building
 Each forecast model had a couple unique elements to incorporate.  Each of these models were evaluated for its mean absolute error (MAE).  This measure was chosen because of its ease of interpretation and outliers aren't particularly disruptive to the model.
-SARIMAX: First I tune the three hyperparameters that go into the order tuple to minimize the error. To do that, I used the auto_arima function from the Pyramid library for Python.  
-Prophet: Facebook prophet does not require that we specify or search for hyperparameters as is the case with SARIMAX. Prophet requires the dataframe to have a column for the data ('y') and an index for dates ('ds').  
-XGBOOST and NN: Both models required explicitly calling for the number of estimator iterations and epochs that will run through each model reducing the loss measures in successive steps.  
-ARIMA: To improve upon the prior models, I lagged the confirmed cases and applied a case fatality ratio to establish the correlation between both variables and lags.  
+**SARIMAX**: First I tune the three hyperparameters that go into the order tuple to minimize the error. To do that, I used the auto_arima function from the Pyramid library for Python.  
+**Prophet**: Facebook prophet does not require that we specify or search for hyperparameters as is the case with SARIMAX. Prophet requires the dataframe to have a column for the data ('y') and an index for dates ('ds').  
+**XGBOOST and NN**: Both models required explicitly calling for the number of estimator iterations and epochs that will run through each model reducing the loss measures in successive steps.  
+**ARIMA**: To improve upon the prior models, I lagged the confirmed cases and applied a case fatality ratio to establish the correlation between both variables and lags.  
 
 ### Model Performance
 The ARIMA lag adjusted model performed the best and far outperformed the other approaches on the test and validation sets.
-* **ARIMA 20-day lagged MAE**:  510
-* **XGBOOST MAE**:  964
-* **Prophet MAE**: 1067
-* **SARIMA MAE**:  917
-* **NN MAE**:  1015
+* **ARIMA 20-day lagged MAE**:  510.03
+* **XGBOOST MAE**:  963.65
+* **Prophet MAE**: 1066.65
+* **SARIMA MAE**:  917.28
+* **NN MAE**:  1015.08
+
