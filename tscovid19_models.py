@@ -7,6 +7,8 @@ Original file is located at
     https://colab.research.google.com/drive/1wI_431eLP1OfjttgPf455O2jMokLA3yI
 
 # Comparing time series predictions of COVID-19 deaths
+
+### The following 4 model comparison was inspired by the Coursera ["Compare time series predictions of COVID-19 deaths"](https://www.coursera.org/projects/compare-time-series-predictions-of-covid19-deaths)code along project.  As a means of improving upon these time series models that yielded modest to substandard results, a final model was employed.  That analysis encorporated an ARIMA model which derives the death predictions based on confirmed cases as well as case fatality ratios.  This approach and analysis was greatly influenced by the Ryan Tibshirani of the Delphi Research Group and the COVID tracking and foreacsting.  [See here.](https://htmlpreview.github.io/?https://github.com/cmu-delphi/covidcast-modeling/blob/master/cfr_analysis/cfr_analysis.html)
 """
 
 #update libraries
@@ -110,7 +112,7 @@ dataset = dataset.diff()
 
 #We're going to start with the beginning of April when the data was a bit more robust. 
 #And end at the 20th of december so we have a date cutoff for future comparisons
-dataset = dataset.loc['2020-04-01':'2020-12-23']
+dataset = dataset.loc['2020-05-01':'2020-12-20']
 
 """## Forcasting using SARIMAX (Seasonal AutoRegressive Integrated Moving Average with eXogenous regressors) model
 
@@ -124,7 +126,7 @@ start_date = '2020-11-01'
 train = dataset.loc[dataset.index < pd.to_datetime(start_date)]
 test = dataset.loc[dataset.index >= pd.to_datetime(start_date)]
 
-"""Now let's talk about SARIMAX. First we'll tune the three hyperparameters that go into the order tuple that will minimize the error. We can use the auto_arima function in the pmdarima module to do that. This will find the optimal parameter combintation and return the best model."""
+"""Now we'll focus on a SARIMAX model. First we'll tune the three hyperparameters that go into the order tuple that will minimize the error. We can use the auto_arima function in the pmdarima module to do that. This will find the optimal parameter combintation and return the best model."""
 
 model = pm.auto_arima(train, start_p=1, start_q=1,
                       test='adf',
@@ -144,12 +146,12 @@ print(model.summary())
 """Next, we call the fit method to optimize the model."""
 
 #The auto_arima function yield the following hyperparemeters: 
-model = SARIMAX(train, order = (2,1,3))
+model = SARIMAX(train, order = (2,1,2))
 results = model.fit(disp=True)
 
 """Now let's make predictions using the model, and compare those against the values in the test set."""
 
-sarimax_predictions = results.predict(start=start_date, end='2020-12-23', dynamic=False)
+sarimax_predictions = results.predict(start=start_date, end='2020-12-20', dynamic=False)
 
 plt.figure(figsize=(10,5))
 l1, = plt.plot(dataset, label = 'Observations')
@@ -297,7 +299,8 @@ NN_df = pd.DataFrame(NN_prediction)
 NN_df.index = y_test.index
 plt.figure(figsize=(30,30))
 fig, axs = plt.subplots(2,2)
-fig.suptitle = ('Compare SARIMA, Prophet, XGBOOST, and Neural Networks(NN')
+fig.suptitle('Compare SARIMA, Prophet, XGBOOST, and Neural Networks(NN)', fontsize=12)
+
 axs[0,0].plot(dataset.tail(50))
 axs[0,0].plot(sarimax_predictions.tail(50))
 axs[0,0].set_title('SARIMA')
@@ -320,7 +323,7 @@ plt.savefig('Comparison.png',
 
 files.download('Comparison.png');
 
-"""The XGBOOST model fared the best albiet still suffered from the same spikes we witnessed in November and December.  If instead of directly predicting the path of the death time series, we looked at this problem as dependent on the number of confirmed cases and the case fatality ratio.  Inspired from the Delphi Group, we take the approach of modeling the confirmed cases."""
+"""The XGBOOST model fared the best albiet still suffered from the same spikes we witnessed in November and December.  If instead of directly predicting the path of the death time series, we looked at this problem as dependent on the number of confirmed cases and the case fatality ratio.  Inspired from the [Delphi Research Group](https://delphi.cmu.edu/about/) (describe themselves as "based out of Carnegie Mellon University dedicated to developing the theory and practice of epidemic tracking and forecasting", I take the alternative approach to the SARIMA, Prophet, XGBOOST, and NN and model the confirmed cases as a predictor for future deaths and apply ARIMA models."""
 
 confirmed_df = pd.read_csv(url_confirmed_us)
 deaths_df = pd.read_csv(url_death_us)
@@ -369,22 +372,25 @@ An alternative method would be to track the confirmed cases and instead calculat
 cfr = round((df['deaths'] / df['confirmed']),4)*100
 df['cfr'] = cfr
 
-#Looking at the most recent case fatality rates
+#Looking at the most recent case fatality rates and end analysis at 12/23/20
+df = df.loc[:'12/20/20']
 df.tail()
 
 #choose start date
-cfr_df = df.loc['2020-04-01':]
+cfr_df = df.loc['2020-05-01':'2020-12-20']
 
-title = 'Case Fatality Ratio'
+title = 'US Case Fatality Ratio'
 ylabel='Case Fatality Ratio (%)'
 xlabel='Date'
 mylabels = ['Case Fatality Ratio']
 
 avg_cfr = cfr_df['cfr'].loc['2020-07-01':].mean()/100
 print('Average CFR since July has been: {:%}'.format(avg_cfr))
-ax = cfr_df['cfr'].plot(legend=True,figsize=(10,6),title=title)
+ax = cfr_df['cfr'].plot(legend=True,figsize=(10,6))
 ax.grid()
 ax.autoscale(axis='x',tight=True)
+ax.set_title(label=title,loc='left')
+ax.set_title(label='May 1 - Dec 20', loc='right')
 ax.set(xlabel=xlabel, ylabel=ylabel)
 ax.legend(labels=mylabels)
 
@@ -395,7 +401,7 @@ files.download('case_fatality_ratio.png');
 
 from scipy.stats import pearsonr
 #first try out data from May, then we can review how the curves change over time
-lag_test = df.loc['2020-05-01':].copy()
+lag_test = df.loc['2020-05-01':'2020-12-20'].copy()
 shift_df = pd.DataFrame(columns = ['Lag','Correlation'])
 
 for shift in range(0,40,1):
@@ -407,14 +413,16 @@ for shift in range(0,40,1):
 
 #plot our curves
 shift_df.set_index('Lag',inplace=True)
-title = 'Correlation Between Lagged Cases and Deaths Since May'
+title = 'US Correlation Between Lagged Cases and Deaths'
 ylabel='Correlation (%)'
 xlabel='Lag (Days)'
 mylabels = ['Pearson Correlation']
 
-ax = shift_df.plot(legend=True,figsize=(8,6),title=title, linestyle='-.')
+ax = shift_df.plot(legend=True,figsize=(8,6), linestyle='-.')
 ax.grid()
 ax.autoscale(axis='x',tight=True)
+ax.set_title(label=title,loc='left')
+ax.set_title(label='May 1 - Dec 20', loc='right')
 ax.set(xlabel=xlabel, ylabel=ylabel)
 ax.legend(labels=mylabels)
 #reduce the name of tick marks on each axis
@@ -430,33 +438,35 @@ plt.axvline(x=(max_x), color='r', linestyle='-')
 plt.savefig('correlation_lags.png',dpi=60, bbox_inches = "tight")
 files.download('correlation_lags.png');
 
-df = df.loc['2020-04-01':]
-df.head()
+df = df.loc['2020-04-01':]  #give an extra month to account for the lags
+df.tail()
 
-#Select lags 21, 23, and 26 days
-df['lag21'] = df['confirmed'].shift(21)
-df['lag23'] = df['confirmed'].shift(23)
-df['lag26'] = df['confirmed'].shift(26)
+#Select lags 20,24, and 28 days
+df['lag20'] = df['confirmed'].shift(20)
+df['lag24'] = df['confirmed'].shift(24)
+df['lag28'] = df['confirmed'].shift(28)
 
 #Calc CFR at each lag
-c21 = df['deaths'] / df['lag21']
-c23 = df['deaths'] / df['lag23']
-c26 = df['deaths'] / df['lag26']
-df['L21'] = c21 * 100
-df['L23'] = c23* 100
-df['L26'] = c26* 100
+c20 = df['deaths'] / df['lag20']
+c24 = df['deaths'] / df['lag24']
+c28 = df['deaths'] / df['lag28']
+df['L20'] = c20 * 100
+df['L24'] = c24 * 100
+df['L28'] = c28 * 100
 
-title = 'Case Fatality Ratio'
+title = 'US Case Fatality Ratio'
 ylabel='Case Fatality Ratio (%)'
 xlabel='Date'
-mylabels = ['Lag21','Lag23','Lag26']
+mylabels = ['Lag20','Lag24','Lag28']
 
-corrlag_df = df[['L21','L23','L26']]
+corrlag_df = df[['L20','L24','L28']]
 #As before, we'll see the CFR to '1.5% and see if that's still holding or if that trend has changed.
-corrlag_df=corrlag_df.loc['2020-09-01':]
-ax = corrlag_df.plot(legend=True,figsize=(12,6),title=title)
+corrlag_df=corrlag_df.loc['2020-09-01':'2020-12-20']
+ax = corrlag_df.plot(legend=True,figsize=(12,6))
 ax.grid()
 ax.autoscale(axis='x',tight=True)
+ax.set_title(label=title,loc='left')
+ax.set_title(label='Sep 1 - Dec 20', loc='right')
 ax.set(xlabel=xlabel, ylabel=ylabel)
 ax.legend(labels=mylabels)
 last_val = round(corrlag_df.tail(1).mean(axis=1)[0],2)
@@ -473,7 +483,7 @@ from sklearn.metrics import mean_absolute_error
 
 lag_test = df.loc['2020-07-01':].copy()
 mae_df = pd.DataFrame(columns = ['Ratio','Lag','MAE'])
-cfr_vals = [1.4,1.6,1.8,2.1]
+cfr_vals = [1.4,1.6,1.8,2.0]
 for cfr in cfr_vals:
     for lag in range(10,30,1):
         cfrs = str(cfr)
@@ -487,26 +497,39 @@ for cfr in cfr_vals:
 
 mae_pivot = mae_df.pivot(index='Lag', columns = 'Ratio', values='MAE')
 
-title = 'Forecast Errors \n from July 1st to December 20th'
+title = 'US FORECAST ERRORS'
 ylabel='Mean Absolute Error (Deaths)'
 xlabel='Lags'
 
-ax = mae_pivot.plot(legend=True,figsize=(8,5),title=title, linestyle='--')
+ax = mae_pivot.plot(legend=True,figsize=(8,5), linestyle='--')
 ax.grid()
 ax.xaxis.get_major_locator().set_params(integer=True)  #clean up x-axis
 ax.autoscale(axis='x',tight=True)
+ax.set_title(label=title,loc='left')
+ax.set_title(label='Jul 1 - Dec 20', loc='right')
 ax.set(xlabel=xlabel, ylabel=ylabel)
 ax.legend(title='CFR',loc='best', bbox_to_anchor=(1, 0.5))
 
 plt.savefig('cfr_forecast_errors.png',dpi=60, bbox_inches = "tight")
 files.download('cfr_forecast_errors.png');
 
+cases = df.loc['2020-05-01':].copy()
+case_lags = df['lag20'].loc['2020-05-01':].copy()
+deaths_adj = 1.6 * case_lags / 100
+
+deaths_adj.head()
+
+"""We can clearly see that the MAE is significantly lower than the prior models.
+
+The 1.6 CFR curve appears to have the lowest MAE at lag 20.  We will work with those parameters in our predictions.  First let's have a look at how the Delphi Group viewed the dataset through their time frame up to Nov 15th (have their metrics held true?)
+"""
+
 #But what about the data presented by the Delphi Group which capped results in Nov
 from sklearn.metrics import mean_absolute_error     
 
 lag_test = df.loc['2020-07-01':'2020-11-15'].copy()
 mae_df = pd.DataFrame(columns = ['Ratio','Lag','MAE'])
-cfr_vals = [1.2,1.5,1.8,2.1]
+cfr_vals = [1.3,1.5,1.7,2.0]
 for cfr in cfr_vals:
     for lag in range(10,30,1):
         cfrs = str(cfr)
@@ -519,7 +542,7 @@ for cfr in cfr_vals:
 
 mae_pivot = mae_df.pivot(index='Lag', columns = 'Ratio', values='MAE')
 
-title = 'Forecast Errors \n from July 1st to November 15th (Delphi research period)'
+title = 'US Forecast Errors \n from July 1st to November 15th (Delphi research period)'
 ylabel='Mean Absolute Error (Deaths)'
 xlabel='Lag'
 
@@ -530,9 +553,11 @@ ax.autoscale(axis='x',tight=True)
 ax.set(xlabel=xlabel, ylabel=ylabel)
 ax.legend(title='CFR',loc='best', bbox_to_anchor=(1, 0.5));
 
-"""### Let's make a prediction ###
+"""As we can see above, their lags were shorter even prior to the Nov-Dec spike however the CFR rates consistently showed a lower MAE at the 1.6 rate
 
-*For our analysis, since we've seen case fatality ratios trending up, we'll apply the latest CFR of 1.6% (which is higher than the average of 1.45% since the July) to forecast 16 days(shortest lag found by Delphi), 20 days(my lowest error) and 26 days into the future which was the longest lag to display a significant correlation.
+### Let's make a prediction ###
+
+*For our analysis, since we've seen case fatality ratios trending up, we'll apply the latest CFR of 1.6% (which is higher than the average of 1.45% since the July) to forecast 16 days(shortest lag found by Delphi), 20 days(my lowest error) and 24 days into the future which was the longest lag to display a significant correlation.
 """
 
 model = pm.auto_arima(df['confirmed'], start_p=1, start_q=1,
@@ -558,32 +583,40 @@ cfr = 1.6
 # ARIMA
 from statsmodels.tsa.arima_model import ARIMA,ARIMAResults
 
-predicts_16 = pd.DataFrame()
-predicts_20 = pd.DataFrame()
-predicts_26 = pd.DataFrame()
+predicts_16 = pd.DataFrame()  #delphi lag
+predicts_20 = pd.DataFrame()  #my analysis lag
+predicts_24 = pd.DataFrame()  #upperbound and highest correlation since May
 
 data = df['confirmed']
 # fit model
 
-model = ARIMA(data,order=(2,1,1))
+model = ARIMA(data,order=(2,1,0))
 results = model.fit()
 
 fcast16 = results.predict(1,len(df)+16,typ='levels').rename('Confirmed predictions') #looking out 16days
 fcast20 = results.predict(1,len(df)+20,typ='levels').rename('Confirmed predictions') #looking out 20days
-fcast26 = results.predict(1,len(df)+26,typ='levels').rename('Confirmed predictions') #looking out 26days
-
-#Select lags 16, 20, and 26 days
-# predicts_16['lag16'] = fcast16.shift(20)
-# predicts_20['lag20'] = fcast20.shift(20)
-# predicts_26['lag26'] = fcast26.shift(20)
+fcast24 = results.predict(1,len(df)+24,typ='levels').rename('Confirmed predictions') #looking out 26days
 
 predicts_16['deaths16'] = fcast16.shift(16) * cfr / 100
 predicts_20['deaths20'] = fcast20.shift(20) * cfr / 100
-predicts_26['deaths26'] = fcast26.shift(26) * cfr / 100
+predicts_24['deaths24'] = fcast26.shift(24) * cfr / 100
 
 predicts_16.index.names = ['ds']
 predicts_20.index.names = ['ds']
-predicts_26.index.names = ['ds']
+predicts_24.index.names = ['ds']
+
+"""Let's analyze the error to compare to the prior models - For the adjusted lagged model, we'll apply the 20 day lag which showed the lowest MAE."""
+
+confirmed_prediction = results.predict(1, len(df), typ='levels')
+death_predictions = confirmed_prediction.shift(20) * cfr / 100
+death_predictions.index.names = ['ds']
+fcst_test  = death_predictions.iloc[-len(test):]
+
+print('ARIMA 20-day lagged MAE: ', mean_absolute_error(fcst_test, test))
+print('XGBOOST MAE = ', mean_absolute_error(XGBOOST_prediction, y_test))
+print('Prophet MAE = ', mean_absolute_error(prophet_future, test))
+print('SARIMA MAE = ', mean_absolute_error(sarimax_predictions, test))
+print('NN MAE = ', mean_absolute_error(NN_prediction, test))
 
 import matplotlib.ticker as ticker
 formatter = ticker.StrMethodFormatter('{x:,.0f}')
@@ -591,15 +624,16 @@ formatter = ticker.StrMethodFormatter('{x:,.0f}')
 fcst = predicts_16.loc['2020-07-01':].copy()
 
 # Plot predictions against known values
-title = '16-day ahead forecast - CFR @ 1.6%'
+title = 'US 16-day ahead forecast - CFR @ 1.6%'
 ylabel='Number of deaths'
 xlabel='Date'
 mylabels = ['Actual', 'Prediction']
 
 df_plot = df.loc['2020-07-01':].copy()
-ax = df_plot['deaths'].plot(legend=True,figsize=(12,6),title=title)
+ax = df_plot['deaths'].plot(legend=True,figsize=(12,6))
 fcst['deaths16'].plot(legend=True)
 ax.autoscale(axis='x',tight=True)
+ax.set_title(label=title,loc='left')
 ax.set(xlabel=xlabel, ylabel=ylabel)
 ax.legend(labels=mylabels)
 ax.yaxis.set_major_formatter(formatter)
@@ -613,15 +647,16 @@ formatter = ticker.StrMethodFormatter('{x:,.0f}')
 fcst = predicts_20.loc['2020-07-01':].copy()
 
 # Plot predictions against known values
-title = '20-day ahead forecast - CFR @ 1.6%'
+title = 'US 20-day ahead forecast - CFR @ 1.6%'
 ylabel='Number of deaths'
 xlabel='Date'
 mylabels = ['Actual', 'Prediction']
 
 df_plot = df.loc['2020-07-01':].copy()
-ax = df_plot['deaths'].plot(legend=True,figsize=(12,6),title=title)
+ax = df_plot['deaths'].plot(legend=True,figsize=(12,6))
 fcst['deaths20'].plot(legend=True)
 ax.autoscale(axis='x',tight=True)
+ax.set_title(label=title,loc='left')
 ax.set(xlabel=xlabel, ylabel=ylabel)
 ax.legend(labels=mylabels)
 ax.yaxis.set_major_formatter(formatter)
@@ -632,42 +667,44 @@ files.download('fcst20day_plot.png');
 import matplotlib.ticker as ticker
 formatter = ticker.StrMethodFormatter('{x:,.0f}')
 
-fcst = predicts_26.loc['2020-07-01':].copy()
+fcst = predicts_24.loc['2020-07-01':].copy()
 
 # Plot predictions against known values
-title = '26-day ahead forecast - CFR @ 1.6%'
+title = 'US 24-day ahead forecast - CFR @ 1.6%'
 ylabel='Number of deaths'
 xlabel='Date'
 mylabels = ['Actual', 'Prediction']
 
 df_plot = df.loc['2020-07-01':].copy()
-ax = df_plot['deaths'].plot(legend=True,figsize=(12,6),title=title)
-fcst['deaths26'].plot(legend=True)
+ax = df_plot['deaths'].plot(legend=True,figsize=(12,6))
+fcst['deaths24'].plot(legend=True)
 ax.autoscale(axis='x',tight=True)
+ax.set_title(label=title,loc='left')
 ax.set(xlabel=xlabel, ylabel=ylabel)
 ax.legend(labels=mylabels)
 ax.yaxis.set_major_formatter(formatter)
 
-plt.savefig('fcst26day_plot.png',dpi=60, bbox_inches = "tight")
-files.download('fcst26day_plot.png');
+plt.savefig('fcst24day_plot.png',dpi=60, bbox_inches = "tight")
+files.download('fcst24day_plot.png');
 
 #Calculate the totals deaths in each foreacst
 sum16 = predicts_16.loc['2020-12-21':].sum()
 death_forecast16 = (dd_df.deaths.max() + sum16).astype(int)[0]
 sum20 = predicts_20.loc['2020-12-21':].sum()
 death_forecast20 = (dd_df.deaths.max() + sum20).astype(int)[0]
-sum26 = predicts_26.loc['2020-12-21':].sum()
-death_forecast26 = (dd_df.deaths.max() + sum26).astype(int)[0]
+sum24 = predicts_24.loc['2020-12-21':].sum()
+death_forecast24 = (dd_df.deaths.max() + sum24).astype(int)[0]
 
+dd_df = dd_df[:'2020-12-20']
 current_dt = dd_df.index[-1].strftime('%Y-%m-%d')
 date16 = predicts_16.index[-1].strftime('%Y-%m-%d')
 date20 = predicts_20.index[-1].strftime('%Y-%m-%d')
-date26 = predicts_26.index[-1].strftime('%Y-%m-%d')
+date24 = predicts_24.index[-1].strftime('%Y-%m-%d')
 
 predictions = [ (current_dt, dd_df.deaths.max()),
                (date16, death_forecast16),
                (date20, death_forecast20),
-               (date26, death_forecast26)  ]
+               (date24, death_forecast24)  ]
 
 death_forecast = pd.DataFrame(predictions, columns = ['Date', 'Total Deaths'] )
 death_forecast.set_index('Date', inplace=True)
@@ -682,7 +719,7 @@ import matplotlib.ticker as ticker
 import pandas.plotting as plotting
 formatter = ticker.StrMethodFormatter('{x:,.0f}')
 
-title = 'Forecasted total deaths from last reported analysis date: \n Lags of 16, 20, and 26 days'
+title = 'US forecasted total deaths \n Lags of 16, 20, and 24 days'
 ylabel='Total Deaths'
 xlabel='Forecasted Date'
 
@@ -720,7 +757,9 @@ ax.annotate('Actual reported',
 fig.autofmt_xdate()
 ax.yaxis.set_major_formatter(formatter)
 
-ax.set(title=title,xlabel=xlabel, ylabel=ylabel)
+ax.set_title(label=title,loc='left')
+ax.set_title(label='Dec 20 - Jan 14', loc='right')
+ax.set(xlabel=xlabel, ylabel=ylabel)
 
 plt.savefig('death_forecast_plot.png',dpi=60, bbox_inches = "tight")
 files.download('death_forecast_plot.png');
