@@ -8,9 +8,9 @@
 * Optmized time series forecasting and compared US death prediction models including ARIMA, SARIMAX, Prophet, XGBOOST and Neural Networks(NN)
 
 ### Code and Resources Used
-Python Version: 3.7
-Environment: Google Colab
-Packages: pandas, numpy, statsmodels, sklearn, matplotlib, keras
+Python Version: 3.7.
+Environment: Google Colab.
+Packages: pandas, numpy, statsmodels, sklearn, matplotlib, keras.
 **Covid Modeling Comps code along** Compare time series predictions of COVID-19 deaths(https://www.coursera.org/projects/compare-time-series-predictions-of-covid19-deaths)
 **Covid Case Fatality Ratio article** Delphi Research Group and the COVID tracking and forecasting (https://htmlpreview.github.io/?https://github.com/cmu-delphi/covidcast-modeling/blob/master/cfr_analysis/cfr_analysis.html)
 
